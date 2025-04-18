@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/megaease/easeprobe/channel"
 	"github.com/megaease/easeprobe/conf"
 	"github.com/megaease/easeprobe/daemon"
 	"github.com/megaease/easeprobe/global"
