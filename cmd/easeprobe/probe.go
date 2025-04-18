@@ -6,7 +6,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
-	"github.com/megaease/easeprobe/channel"
 	"github.com/megaease/easeprobe/conf"
 	"github.com/megaease/easeprobe/global"
 	"github.com/megaease/easeprobe/probe"
@@ -69,12 +68,6 @@ func runProbers(probers []probe.Prober, wg *sync.WaitGroup, done chan bool, save
 			// send the result to the persistent channel
 			saveChannel <- res
 			// send the result to all channels
-			for _, cName := range p.Channels() {
-				if ch := channel.GetChannel(cName); ch != nil {
-					ch.Send(res)
-				}
-			}
-
 			select {
 			case <-done:
 				log.Infof("%s / %s - Received the done signal, exiting...", p.Kind(), p.Name())

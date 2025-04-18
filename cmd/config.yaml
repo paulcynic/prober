@@ -1,26 +1,13 @@
-#ping:
-#  - name: failed ping
-#    host: 10.8.8.244
-#    count: 5
-#    lost: 0.2
-
 tcp:
-  - name: my python server
+  - name: LocalPythonServer
     host: 127.0.0.1:8001
 
 settings:
   pid: /tmp/easeprobe.pid
   name: MyService
   timeformat: "2001-01-01 00:00:00"
-  sla:
-    data: "-"
   probe:
     timeout: 2s
     interval: 15s
     failure: 1
     success: 1
-
-notify:
-  teams:
-    - name: "Teams notify"
-      webhook: "http://localhost:8000/notify"

@@ -1,4 +1,3 @@
-
 package conf
 
 import (
@@ -10,7 +9,6 @@ import (
 	"github.com/megaease/easeprobe/probe"
 	"github.com/megaease/easeprobe/probe/base"
 	"github.com/megaease/easeprobe/probe/http"
-	"github.com/megaease/easeprobe/probe/shell"
 	"github.com/megaease/easeprobe/probe/tcp"
 )
 
@@ -27,7 +25,6 @@ func TestMergeConstLabels(t *testing.T) {
 				Labels: prometheus.Labels{"host": "host_b"},
 			},
 		},
-		&shell.Shell{},
 	}
 
 	MergeConstLabels(ps)
@@ -39,8 +36,4 @@ func TestMergeConstLabels(t *testing.T) {
 	assert.Equal(t, 2, len(ps[1].LabelMap()))
 	assert.Equal(t, "", ps[1].LabelMap()["service"])
 	assert.Equal(t, "host_b", ps[1].LabelMap()["host"])
-
-	assert.Equal(t, 2, len(ps[2].LabelMap()))
-	assert.Equal(t, "", ps[2].LabelMap()["service"])
-	assert.Equal(t, "", ps[2].LabelMap()["host"])
 }

@@ -1,4 +1,3 @@
-
 package conf
 
 import (
@@ -14,21 +13,12 @@ import (
 
 	"github.com/megaease/easeprobe/global"
 	"github.com/megaease/easeprobe/monkey"
-	"github.com/megaease/easeprobe/notify"
-	"github.com/megaease/easeprobe/notify/discord"
-	"github.com/megaease/easeprobe/notify/email"
-	"github.com/megaease/easeprobe/notify/slack"
-	"github.com/megaease/easeprobe/notify/telegram"
 	"github.com/megaease/easeprobe/probe/client"
 	clientConf "github.com/megaease/easeprobe/probe/client/conf"
-	"github.com/megaease/easeprobe/probe/host"
 	httpProbe "github.com/megaease/easeprobe/probe/http"
-	"github.com/megaease/easeprobe/probe/shell"
-	"github.com/megaease/easeprobe/probe/ssh"
 	"github.com/megaease/easeprobe/probe/tcp"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
 )
 
 func testisExternalURL(url string, expects bool, t *testing.T) {

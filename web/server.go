@@ -1,12 +1,9 @@
-
 // Package web is the web server of easeprobe.
 package web
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"html"
 	"net"
 	"net/http"
@@ -17,7 +14,6 @@ import (
 	"github.com/megaease/easeprobe/conf"
 	"github.com/megaease/easeprobe/global"
 	"github.com/megaease/easeprobe/probe"
-	"github.com/megaease/easeprobe/report"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/go-chi/chi/v5"
@@ -71,57 +67,6 @@ func getStr(str string) string {
 	return strings.TrimSpace(html.EscapeString(str))
 }
 
-func getFilter(req *http.Request) (*report.SLAFilter, error) {
-	filter := &report.SLAFilter{}
-
-	filter.Name = getStr(req.URL.Query().Get("name"))
-	filter.Kind = getStr(req.URL.Query().Get("kind"))
-	filter.Endpoint = getStr(req.URL.Query().Get("ep"))
-	filter.Status = getStatus(req.URL.Query().Get("status"))
-	filter.Message = getStr(req.URL.Query().Get("msg"))
-	filter.SLAGreater = getNum(req.URL.Query().Get("gte"), 0, toFloat)
-	filter.SLALess = getNum(req.URL.Query().Get("lte"), 100, toFloat)
-	filter.PageNum = getNum(req.URL.Query().Get("pg"), 1, toInt)
-	filter.PageSize = getNum(req.URL.Query().Get("sz"), global.DefaultPageSize, toInt)
-
-	if err := filter.Check(); err != nil {
-		log.Errorf(err.Error())
-		return nil, err
-	}
-	return filter, nil
-}
-
-func slaHTML(w http.ResponseWriter, req *http.Request) {
-	interval := getRefreshInterval(req.URL.Query().Get("refresh"))
-
-	filter, err := getFilter(req)
-	if err != nil {
-		w.Write([]byte(err.Error()))
-		return
-	}
-
-	refresh := fmt.Sprintf("%d", interval.Milliseconds())
-	html := []byte(report.SLAHTMLFilter(*probers, filter) + report.AutoRefreshJS(refresh))
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write(html)
-}
-
-func slaJSON(w http.ResponseWriter, req *http.Request) {
-	filter, err := getFilter(req)
-	if err != nil {
-		buf, e := json.Marshal(err)
-		if e != nil {
-			w.Write([]byte(err.Error()))
-			return
-		}
-		w.Write(buf)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_probers := filter.Filter(*probers)
-	w.Write([]byte(report.SLAJSON(_probers)))
-}
 
 // SetProbers set the probers
 func SetProbers(p []probe.Prober) {
@@ -169,15 +114,7 @@ func Server() {
 	r.Use(middleware.RedirectSlashes)
 	r.Use(middleware.StripSlashes)
 
-	r.Get("/", slaHTML)
-
 	r.Get("/metrics", promhttp.Handler().ServeHTTP)
-
-	r.Route("/api/v1", func(r chi.Router) {
-		r.Get("/sla", slaJSON)
-	})
-
-	r.NotFound(slaHTML)
 
 	server, err := net.Listen("tcp", host+":"+port)
 	if err != nil {

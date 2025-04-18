@@ -12,7 +12,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/megaease/easeprobe/channel"
 	"github.com/megaease/easeprobe/conf"
 	"github.com/megaease/easeprobe/daemon"
 	"github.com/megaease/easeprobe/global"
@@ -106,12 +105,8 @@ func main() {
 
 	// if dry notification mode is specified in command line, overwrite the configuration
 	if *dryNotify {
-		c.Settings.Notify.Dry = *dryNotify
 		log.Infoln("Dry Notification Mode...")
 	}
-	// set the dry notify flag to channel
-	channel.SetDryNotify(c.Settings.Notify.Dry)
-
 	////////////////////////////////////////////////////////////////////////////
 	//                          Start the HTTP Server                         //
 	////////////////////////////////////////////////////////////////////////////
@@ -124,21 +119,11 @@ func main() {
 
 	// Probers
 	probers := c.AllProbers()
-	// Notification
-	notifies := c.AllNotifiers()
 	// Configure the Probes
 	probers = configProbers(probers)
 	if len(probers) == 0 {
 		log.Fatal("No probes configured, exiting...")
 	}
-	// Configure the Notifiers
-	notifies = configNotifiers(notifies)
-	if len(notifies) == 0 {
-		log.Fatal("No notifies configured, exiting...")
-	}
-
-	// configure channels
-	configChannels(probers, notifies)
 
 	////////////////////////////////////////////////////////////////////////////
 	//                          Start the EaseProbe                           //
@@ -148,29 +133,15 @@ func main() {
 	var wg sync.WaitGroup
 	// the exit channel for all probers
 	doneProbe := make(chan bool, len(probers))
-	// the exit channel for saving the data
-	doneSave := make(chan bool)
-	// the channel for saving the probe result data
-	saveChannel := make(chan probe.Result, len(probers))
-
-	// 1) SLA Data Save process
-	probe.CleanData(probers)           // remove the data not in probers
-	go saveData(doneSave, saveChannel) // save the data to file
-
 	// 2) Start the Probers
-	runProbers(probers, &wg, doneProbe, saveChannel)
-	// 3) Start the Event Watching
-	channel.WatchForAllEvents()
+    doneSave := make(chan bool)
+    // the channel for saving the probe result data
+    saveChannel := make(chan probe.Result, len(probers))
 
+	runProbers(probers, &wg, doneProbe, saveChannel)
 	// 4) Set probers into web server
 	web.SetProbers(probers)
 
-	// 5) Set the Cron Job for SLA Report
-	if conf.Get().Settings.SLAReport.Schedule != conf.None {
-		scheduleSLA(probers)
-	} else {
-		log.Info("No SLA Report would be sent!!")
-	}
 
 	////////////////////////////////////////////////////////////////////////////
 	//                          Rotate the log file                           //
@@ -210,7 +181,6 @@ func main() {
 			}
 		}
 		wg.Wait()
-		channel.AllDone()
 		doneSave <- true
 		doneRotate <- true
 	}

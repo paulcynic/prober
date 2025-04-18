@@ -1,4 +1,3 @@
-
 // Package conf is the configuration of the application
 package conf
 
@@ -15,19 +14,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/megaease/easeprobe/channel"
 	"github.com/megaease/easeprobe/global"
-	"github.com/megaease/easeprobe/notify"
 	"github.com/megaease/easeprobe/probe"
 	"github.com/megaease/easeprobe/probe/client"
-	"github.com/megaease/easeprobe/probe/host"
 	"github.com/megaease/easeprobe/probe/http"
-	"github.com/megaease/easeprobe/probe/ping"
-	"github.com/megaease/easeprobe/probe/shell"
-	"github.com/megaease/easeprobe/probe/ssh"
 	"github.com/megaease/easeprobe/probe/tcp"
 	"github.com/megaease/easeprobe/probe/tls"
-	"github.com/megaease/easeprobe/probe/websocket"
 
 	"github.com/invopop/jsonschema"
 	log "github.com/sirupsen/logrus"
@@ -75,11 +67,6 @@ func (s *Schedule) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return global.EnumUnmarshalYaml(unmarshal, stringToSchedule, s, None, "Schedule")
 }
 
-// Notify is the settings of notification
-type Notify struct {
-	Retry global.Retry `yaml:"retry" json:"retry,omitempty" jsonschema:"title=retry,description=the retry settings"`
-	Dry   bool         `yaml:"dry" json:"dry,omitempty" jsonschema:"title=dry,description=set true to make the notification dry run and will not be sent the message,default=false"`
-}
 
 // Probe is the settings of prober
 type Probe struct {
@@ -87,16 +74,6 @@ type Probe struct {
 	Timeout                              time.Duration `yaml:"timeout" json:"timeout,omitempty" jsonschema:"type=string,format=duration,title=Probe Timeout,description=the timeout of probe,default=30s"`
 	global.StatusChangeThresholdSettings `yaml:",inline" json:",inline"`
 	global.NotificationStrategySettings  `yaml:"alert" json:"alert" jsonschema:"title=Alert,description=the alert settings"`
-}
-
-// SLAReport is the settings for SLA report
-type SLAReport struct {
-	Schedule Schedule `yaml:"schedule" json:"schedule" jsonschema:"type=string,enum=none,enum=minutely,enum=hourly,enum=daily,enum=weekly,enum=monthly,title=Schedule,description=the schedule of SLA report"`
-	Time     string   `yaml:"time" json:"time,omitempty" jsonschema:"format=time,title=Time,description=the time of SLA report need to send out,example=23:59:59+08:00"`
-	//Debug    bool     `yaml:"debug" json:"debug,omitempty" jsonschema:"title=Debug,description=if true the SLA report will be printed to stdout,default=false"`
-	DataFile string   `yaml:"data" json:"data,omitempty" jsonschema:"title=Data File,description=the data file of SLA report, absolute path. ('-' means no SLA persistent data)"`
-	Backups  int      `yaml:"backups" json:"backups,omitempty" jsonschema:"title=Backups,description=the number of backups of SLA report,default=5"`
-	Channels []string `yaml:"channels" json:"channels,omitempty" jsonschema:"title=Channels,description=the channels of SLA report"`
 }
 
 // HTTPServer is the settings of http server
@@ -116,8 +93,6 @@ type Settings struct {
 	TimeFormat string     `yaml:"timeformat" json:"timeformat,omitempty" jsonschema:"title=Time Format,description=The time format of the EaseProbe instance,default=2006-01-02 15:04:05Z07:00"`
 	TimeZone   string     `yaml:"timezone" json:"timezone,omitempty" jsonschema:"title=Time Zone,description=The time zone of the EaseProbe instance,example=Asia/Shanghai,example=Europe/Berlin,default=UTC"`
 	Probe      Probe      `yaml:"probe" json:"probe,omitempty" jsonschema:"title=Probe Settings,description=The global probe settings of the EaseProbe instance"`
-	Notify     Notify     `yaml:"notify" json:"notify,omitempty" jsonschema:"title=Notify Settings,description=The global notify settings of the EaseProbe instance"`
-	SLAReport  SLAReport  `yaml:"sla" json:"sla,omitempty" jsonschema:"title=SLA Report Settings,description=The SLA report settings of the EaseProbe instance"`
 	HTTPServer HTTPServer `yaml:"http" json:"http,omitempty" jsonschema:"title=HTTP Server Settings,description=The HTTP server settings of the EaseProbe instance"`
 }
 
@@ -126,14 +101,8 @@ type Conf struct {
 	Version   string                `yaml:"version" json:"version,omitempty" jsonschema:"title=Version,description=Version of the EaseProbe configuration"`
 	HTTP      []http.HTTP           `yaml:"http" json:"http,omitempty" jsonschema:"title=HTTP Probe,description=HTTP Probe Configuration"`
 	TCP       []tcp.TCP             `yaml:"tcp" json:"tcp,omitempty" jsonschema:"title=TCP Probe,description=TCP Probe Configuration"`
-	Shell     []shell.Shell         `yaml:"shell" json:"shell,omitempty" jsonschema:"title=Shell Probe,description=Shell Probe Configuration"`
 	Client    []client.Client       `yaml:"client" json:"client,omitempty" jsonschema:"title=Native Client Probe,description=Native Client Probe Configuration"`
-	SSH       ssh.SSH               `yaml:"ssh" json:"ssh,omitempty" jsonschema:"title=SSH Probe,description=SSH Probe Configuration"`
 	TLS       []tls.TLS             `yaml:"tls" json:"tls,omitempty" jsonschema:"title=TLS Probe,description=TLS Probe Configuration"`
-	Host      host.Host             `yaml:"host" json:"host,omitempty" jsonschema:"title=Host Probe,description=Host Probe Configuration"`
-	Ping      []ping.Ping           `yaml:"ping" json:"ping,omitempty" jsonschema:"title=Ping Probe,description=Ping Probe Configuration"`
-	WebSocket []websocket.WebSocket `yaml:"websocket" json:"websocket,omitempty" jsonschema:"title=WebSocket Probe,description=WebSocket Probe Configuration"`
-	Notify    notify.Config         `yaml:"notify" json:"notify,omitempty" jsonschema:"title=Notification,description=Notification Configuration"`
 	Settings  Settings              `yaml:"settings" json:"settings,omitempty" jsonschema:"title=Global Settings,description=EaseProbe Global configuration"`
 }
 
@@ -277,18 +246,8 @@ func New(conf *string) (*Conf, error) {
 	c := Conf{
 		HTTP:   []http.HTTP{},
 		TCP:    []tcp.TCP{},
-		Shell:  []shell.Shell{},
 		Client: []client.Client{},
-		SSH: ssh.SSH{
-			Bastion: &ssh.BastionMap,
-			Servers: []ssh.Server{},
-		},
 		TLS: []tls.TLS{},
-		Host: host.Host{
-			Bastion: &host.BastionMap,
-			Servers: []host.Server{},
-		},
-		Notify: notify.Config{},
 		Settings: Settings{
 			Name:       global.DefaultProg,
 			IconURL:    global.DefaultIconURL,
@@ -299,21 +258,6 @@ func New(conf *string) (*Conf, error) {
 			Probe: Probe{
 				Interval: global.DefaultProbeInterval,
 				Timeout:  global.DefaultTimeOut,
-			},
-			Notify: Notify{
-				Retry: global.Retry{
-					Times:    global.DefaultRetryTimes,
-					Interval: global.DefaultRetryInterval,
-				},
-				Dry: false,
-			},
-			SLAReport: SLAReport{
-				Schedule: Daily,
-				Time:     "00:00",
-				//Debug:    false,
-				DataFile: global.DefaultDataFile,
-				Backups:  global.DefaultMaxBackups,
-				Channels: []string{global.DefaultChannelName},
 			},
 			HTTPServer: HTTPServer{
 				IP:        global.DefaultHTTPServerIP,
@@ -340,13 +284,6 @@ func New(conf *string) (*Conf, error) {
 	c.Settings.Log.InitLog(nil)
 	global.InitEaseProbeWithTime(c.Settings.Name, c.Settings.IconURL,
 		c.Settings.TimeFormat, c.Settings.TimeZone)
-	c.initData()
-
-	ssh.BastionMap.ParseAllBastionHost()
-	host.BastionMap.ParseAllBastionHost()
-
-	// pass the dry run to the channel
-	channel.SetDryNotify(c.Settings.Notify.Dry)
 
 	config = &c
 
@@ -373,45 +310,6 @@ func (conf *Conf) InitAllLogs() {
 	conf.Settings.HTTPServer.AccessLog.LogInfo("Web Access")
 }
 
-func (conf *Conf) initData() {
-
-	// Check if we are explicitly disabled
-	if strings.TrimSpace(conf.Settings.SLAReport.DataFile) == "-" {
-		log.Infof("SLA data disabled by configuration. Skipping SLA data store...")
-		return
-	}
-
-	// Check if we are empty and use global.DefaultDataFile
-	if strings.TrimSpace(conf.Settings.SLAReport.DataFile) == "" {
-		conf.Settings.SLAReport.DataFile = global.DefaultDataFile
-	}
-
-	dir, _ := filepath.Split(conf.Settings.SLAReport.DataFile)
-	// if dir part is not empty
-	if strings.TrimSpace(dir) != "" {
-		// check for `dir`` existence and create intermediate folders
-		if _, err := os.Stat(dir); os.IsNotExist(err) {
-			log.Infof("Creating base directory for data file!")
-			if err := os.MkdirAll(dir, 0755); err != nil {
-				log.Warnf("Failed to create base directory for data file: %s", err.Error())
-				return
-			}
-		}
-	}
-
-	// check if the data file exists and is a regular file
-	dataInfo, err := os.Stat(conf.Settings.SLAReport.DataFile)
-	if os.IsNotExist(err) || !dataInfo.Mode().IsRegular() {
-		log.Infof("The data file %s, was not found!", conf.Settings.SLAReport.DataFile)
-		return
-	}
-
-	if err := probe.LoadDataFromFile(conf.Settings.SLAReport.DataFile); err != nil {
-		log.Warnf("Cannot load data from file(%s): %v", conf.Settings.SLAReport.DataFile, err)
-	}
-
-	probe.CleanDataFile(conf.Settings.SLAReport.DataFile, conf.Settings.SLAReport.Backups)
-}
 
 // isProbe checks whether a interface is a probe type
 func isProbe(t reflect.Type) bool {
@@ -456,34 +354,4 @@ func allProbersHelper(i interface{}) []probe.Prober {
 	}
 
 	return probers
-}
-
-// isNotify checks whether a interface is a Notify type
-func isNotify(t reflect.Type) bool {
-	modelType := reflect.TypeOf((*notify.Notify)(nil)).Elem()
-	return t.Implements(modelType)
-}
-
-// AllNotifiers return all notifiers
-func (conf *Conf) AllNotifiers() []notify.Notify {
-	var notifies []notify.Notify
-
-	log.Debugf("--------- Process the notification settings ---------")
-	t := reflect.TypeOf(conf.Notify)
-	for i := 0; i < t.NumField(); i++ {
-		if t.Field(i).Type.Kind() != reflect.Slice {
-			continue
-		}
-		v := reflect.ValueOf(conf.Notify).Field(i)
-		for j := 0; j < v.Len(); j++ {
-			if !isNotify(v.Index(j).Addr().Type()) {
-				log.Debugf("%s is not a notify type", v.Index(j).Type())
-				continue
-			}
-			log.Debugf("--> %s - %s - %+v", t.Field(i).Name, t.Field(i).Type.Kind(), v.Index(j))
-			notifies = append(notifies, v.Index(j).Addr().Interface().(notify.Notify))
-		}
-	}
-
-	return notifies
 }
