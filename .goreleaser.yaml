@@ -1,0 +1,95 @@
+version: 2
+
+before:
+  hooks:
+    # You may remove this if you don't use go modules.
+    - go mod tidy
+    # you may remove this if you don't need go generate
+    - go generate ./...
+
+snapshot:
+  version_template: '{{ .Tag }}'
+checksum:
+  name_template: 'checksums.txt'
+
+builds:
+  - id: build
+    main: ./cmd/easeprobe/
+    binary: bin/easeprobe
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+      - openbsd
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/megaease/easeprobe/global.Ver={{ .Tag }}
+      - -X github.com/megaease/easeprobe/pkg/version.RELEASE={{ .Tag }}
+      - -X github.com/megaease/easeprobe/pkg/version.COMMIT={{.Commit}}
+      - -X github.com/megaease/easeprobe/pkg/version.REPO=megaease/easeprobe
+
+archives:
+  - id: easeprobe
+    format: tar.gz
+    name_template: "{{ .ProjectName }}-v{{ .Version }}-{{ .Os }}-{{ .Arch }}"
+    files:
+      - none*
+
+release:
+  github:
+    owner: megaease
+    name: easeprobe
+  name_template: "{{ .ProjectName }}-v{{ .Version }}"
+
+dockers:
+  - image_templates:
+      - megaease/easeprobe:{{ .Tag }}-amd64
+    goos: linux
+    goarch: amd64
+    ids:
+      - build
+    dockerfile: resources/Dockerfile.goreleaser
+    extra_files:
+      - resources/scripts/entrypoint.sh
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/amd64"
+      - "--build-arg=BUILD_DATE={{.Date}}"
+      - "--build-arg=BUILD_VERSION={{.Version}}"
+      - "--build-arg=VCS_REF={{.FullCommit}}"
+      - "--build-arg=VCS_URL={{.GitURL}}"
+
+  - image_templates:
+      - megaease/easeprobe:{{ .Tag }}-arm64v8
+    goos: linux
+    goarch: arm64
+    ids:
+      - build
+    dockerfile: resources/Dockerfile.goreleaser
+    extra_files:
+      - resources/scripts/entrypoint.sh
+    use: buildx
+    build_flag_templates:
+      - "--platform=linux/arm64/v8"
+      - "--build-arg=BUILD_DATE={{.Date}}"
+      - "--build-arg=BUILD_VERSION={{.Version}}"
+      - "--build-arg=VCS_REF={{.FullCommit}}"
+      - "--build-arg=VCS_URL={{.GitURL}}"
+
+
+docker_manifests:
+
+- name_template: megaease/easeprobe:{{ .Tag }}
+  image_templates:
+  - megaease/easeprobe:{{ .Tag }}-amd64
+  - megaease/easeprobe:{{ .Tag }}-arm64v8
+
+- name_template: megaease/easeprobe:latest
+  image_templates:
+  - megaease/easeprobe:{{ .Tag }}-amd64
+  - megaease/easeprobe:{{ .Tag }}-arm64v8
