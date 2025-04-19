@@ -62,10 +62,6 @@ func (e *Evaluator) Config() error {
 func (e *Evaluator) configExtractor() {
 	e.ExtractedValues = make(map[string]interface{})
 	switch e.DocType {
-	case HTML:
-		e.Extractor = NewHTMLExtractor(e.Document)
-	case XML:
-		e.Extractor = NewXMLExtractor(e.Document)
 	case JSON:
 		e.Extractor = NewJSONExtractor(e.Document)
 	case TEXT:

@@ -3,7 +3,6 @@ package conf
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	httpClient "net/http"
 	netUrl "net/url"
@@ -21,7 +20,6 @@ import (
 	"github.com/megaease/easeprobe/probe/tcp"
 	"github.com/megaease/easeprobe/probe/tls"
 
-	"github.com/invopop/jsonschema"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
@@ -67,7 +65,6 @@ func (s *Schedule) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return global.EnumUnmarshalYaml(unmarshal, stringToSchedule, s, None, "Schedule")
 }
 
-
 // Probe is the settings of prober
 type Probe struct {
 	Interval                             time.Duration `yaml:"interval" json:"interval,omitempty" jsonschema:"type=string,format=duration,title=Probe Interval,description=the interval of probe,default=1m"`
@@ -98,44 +95,14 @@ type Settings struct {
 
 // Conf is Probe configuration
 type Conf struct {
-	Version   string                `yaml:"version" json:"version,omitempty" jsonschema:"title=Version,description=Version of the EaseProbe configuration"`
-	HTTP      []http.HTTP           `yaml:"http" json:"http,omitempty" jsonschema:"title=HTTP Probe,description=HTTP Probe Configuration"`
-	TCP       []tcp.TCP             `yaml:"tcp" json:"tcp,omitempty" jsonschema:"title=TCP Probe,description=TCP Probe Configuration"`
-	Client    []client.Client       `yaml:"client" json:"client,omitempty" jsonschema:"title=Native Client Probe,description=Native Client Probe Configuration"`
-	TLS       []tls.TLS             `yaml:"tls" json:"tls,omitempty" jsonschema:"title=TLS Probe,description=TLS Probe Configuration"`
-	Settings  Settings              `yaml:"settings" json:"settings,omitempty" jsonschema:"title=Global Settings,description=EaseProbe Global configuration"`
+	Version  string          `yaml:"version" json:"version,omitempty" jsonschema:"title=Version,description=Version of the EaseProbe configuration"`
+	HTTP     []http.HTTP     `yaml:"http" json:"http,omitempty" jsonschema:"title=HTTP Probe,description=HTTP Probe Configuration"`
+	TCP      []tcp.TCP       `yaml:"tcp" json:"tcp,omitempty" jsonschema:"title=TCP Probe,description=TCP Probe Configuration"`
+	Client   []client.Client `yaml:"client" json:"client,omitempty" jsonschema:"title=Native Client Probe,description=Native Client Probe Configuration"`
+	TLS      []tls.TLS       `yaml:"tls" json:"tls,omitempty" jsonschema:"title=TLS Probe,description=TLS Probe Configuration"`
+	Settings Settings        `yaml:"settings" json:"settings,omitempty" jsonschema:"title=Global Settings,description=EaseProbe Global configuration"`
 }
 
-// JSONSchema return the json schema of the configuration
-func JSONSchema() (string, error) {
-	r := new(jsonschema.Reflector)
-
-	// The Struct name could be same, but the package name is different
-	// For example, all of the notification plugins have the same struct name - `NotifyConfig`
-	// This would cause the json schema to be wrong `$ref` to the same name.
-	// the following code is to fix this issue by adding the package name to the struct name
-	// p.s. this issue has been reported in: https://github.com/invopop/jsonschema/issues/42
-	r.Namer = func(t reflect.Type) string {
-		name := t.Name()
-		if t.Kind() == reflect.Struct {
-			v := reflect.New(t)
-			vt := v.Elem().Type()
-			name = vt.PkgPath() + "/" + vt.Name()
-			name = strings.TrimPrefix(name, "github.com/megaease/easeprobe/")
-			name = strings.ReplaceAll(name, "/", "_")
-			log.Debugf("The struct name has been replaced [%s ==> %s]", t.Name(), name)
-		}
-		return name
-	}
-
-	schema := r.Reflect(&Conf{})
-
-	resBytes, err := json.MarshalIndent(schema, "", "  ")
-	if err != nil {
-		return "", err
-	}
-	return string(resBytes), nil
-}
 
 // Check if string is a url
 func isExternalURL(url string) bool {
@@ -247,7 +214,7 @@ func New(conf *string) (*Conf, error) {
 		HTTP:   []http.HTTP{},
 		TCP:    []tcp.TCP{},
 		Client: []client.Client{},
-		TLS: []tls.TLS{},
+		TLS:    []tls.TLS{},
 		Settings: Settings{
 			Name:       global.DefaultProg,
 			IconURL:    global.DefaultIconURL,
@@ -309,7 +276,6 @@ func (conf *Conf) InitAllLogs() {
 	conf.Settings.HTTPServer.AccessLog.InitLog(log.New())
 	conf.Settings.HTTPServer.AccessLog.LogInfo("Web Access")
 }
-
 
 // isProbe checks whether a interface is a probe type
 func isProbe(t reflect.Type) bool {

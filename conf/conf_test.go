@@ -1,9 +1,7 @@
 package conf
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	httpClient "net/http"
@@ -11,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/megaease/easeprobe/global"
 	"github.com/megaease/easeprobe/monkey"
 	"github.com/megaease/easeprobe/probe/client"
 	clientConf "github.com/megaease/easeprobe/probe/client/conf"
@@ -19,6 +16,7 @@ import (
 	"github.com/megaease/easeprobe/probe/tcp"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 )
 
 func testisExternalURL(url string, expects bool, t *testing.T) {
@@ -172,169 +170,6 @@ func checkTCPProbe(t *testing.T, probe tcp.TCP) {
 	}
 }
 
-const confShell = `
-shell:
-  - name: Google Service
-    cmd: "./resources/scripts/probe/proxy.curl.sh"
-    args:
-      - "socks5://127.0.0.1:1085"
-      - "www.google.com"
-    timeout: 20s
-    interval: 1m
-    channels:
-        - "telegram#Dev"
-  - name: Redis (Local)
-    cmd: "redis-cli"
-    args:
-      - "-h"
-      - "127.0.0.1"
-      - "-p"
-      - 6379
-      - "ping"
-    env:
-      - "REDISCLI_AUTH=abc123"
-    contain: "PONG"
-	channels:
-        - "slack"
-`
-
-func checkShellProbe(t *testing.T, probe shell.Shell) {
-	switch probe.ProbeName {
-	case "Google Service":
-		assert.Equal(t, probe.Command, "./resources/scripts/probe/proxy.curl.sh")
-		assert.Equal(t, probe.Args, []string{"socks5://127.0.0.1:1085", "www.google.com"})
-		assert.Equal(t, probe.ProbeTimeout, 20*time.Second)
-		assert.Equal(t, probe.ProbeTimeInterval, 1*time.Minute)
-		assert.Equal(t, probe.Channels(), []string{"telegram#Dev"})
-	case "Redis (Local)":
-		assert.Equal(t, probe.Command, "redis-cli")
-		assert.Equal(t, probe.Args, []string{"-h", "127.0.0.1", "-p", "6379", "ping"})
-		assert.Equal(t, probe.Env, []string{"REDISCLI_AUTH=abc123"})
-		assert.Equal(t, probe.Contain, "PONG")
-		assert.Equal(t, probe.Channels(), []string{"slack"})
-	default:
-		t.Errorf("unexpected probe name %s", probe.ProbeName)
-	}
-}
-
-const confSSH = `
-ssh:
-  bastion:
-    aws:
-      host: ubuntu@one.aws.server
-      #username: ubuntu
-      key: /home/chenhao/.ssh/pem/my.pem
-    gcp:
-      host: one.gcp.server:22
-      username: ubuntu
-      key: /home/chenhao/.ssh/pem/my.pem
-
-  servers:
-    - name: AWS Server
-      bastion: aws
-      host: 172.20.2.202:22
-      username: ubuntu
-      password: xxxx
-      key: /home/chenhao/.ssh/pem/my.pem
-      cmd: "env;hostname;ifconfig"
-      env:
-        - "EASEPROBE=1"
-
-    - name: GCP Server
-      host: 10.1.1.1:22
-      bastion: gcp
-      key: /home/chenhao/.ssh/pem/my.pem
-      cmd: "env;hostname;ifconfig"
-      env:
-        - "EASEPROBE=1"
-      contain: EASEPROBE
-`
-
-func checkSSHProbe(t *testing.T, probe ssh.SSH) {
-	m := probe.Bastion
-	aws := (*m)["aws"]
-	assert.Equal(t, aws.Host, "one.aws.server:22")
-	assert.Equal(t, aws.User, "ubuntu")
-	assert.Equal(t, aws.PrivateKey, "/home/chenhao/.ssh/pem/my.pem")
-	gcp := (*m)["gcp"]
-	assert.Equal(t, gcp.Host, "one.gcp.server:22")
-	assert.Equal(t, gcp.User, "ubuntu")
-	assert.Equal(t, gcp.PrivateKey, "/home/chenhao/.ssh/pem/my.pem")
-
-	for _, server := range probe.Servers {
-		checkSSHServerProbe(t, server)
-	}
-}
-
-func checkSSHServerProbe(t *testing.T, probe ssh.Server) {
-	switch probe.ProbeName {
-	case "AWS Server":
-		assert.Equal(t, probe.Host, "172.20.2.202:22")
-		assert.Equal(t, probe.BastionID, "aws")
-		assert.Equal(t, probe.User, "ubuntu")
-		assert.Equal(t, probe.Password, "xxxx")
-		assert.Equal(t, probe.PrivateKey, "/home/chenhao/.ssh/pem/my.pem")
-		assert.Equal(t, probe.Command, "env;hostname;ifconfig")
-		assert.Equal(t, probe.Env, []string{"EASEPROBE=1"})
-	case "GCP Server":
-		assert.Equal(t, probe.Host, "10.1.1.1:22")
-		assert.Equal(t, probe.BastionID, "gcp")
-		assert.Equal(t, probe.PrivateKey, "/home/chenhao/.ssh/pem/my.pem")
-		assert.Equal(t, probe.Command, "env;hostname;ifconfig")
-		assert.Equal(t, probe.Env, []string{"EASEPROBE=1"})
-		assert.Equal(t, probe.Contain, "EASEPROBE")
-	default:
-		t.Errorf("unexpected probe name %s", probe.ProbeName)
-	}
-}
-
-const confHost = `
-host:
-  bastion:
-    aws:
-      host: ubuntu@one.aws.server
-      key: /home/chenhao/.ssh/pem/my.pem
-
-  servers:
-    - name: AWS Server
-      bastion: aws
-      host: ubuntu@172.20.2.125
-      key: /home/chenhao/.ssh/pem/my.pem
-      threshold:
-        cpu: 0.75
-        mem: 0.70
-        disk: 0.90
-      channels:
-        - general
-        - test
-`
-
-func checkHostProbe(t *testing.T, probe host.Host) {
-	m := probe.Bastion
-	aws := (*m)["aws"]
-	assert.Equal(t, aws.Host, "one.aws.server:22")
-	assert.Equal(t, aws.User, "ubuntu")
-	assert.Equal(t, aws.PrivateKey, "/home/chenhao/.ssh/pem/my.pem")
-	for _, server := range probe.Servers {
-		checkHostServerProbe(t, server)
-	}
-}
-
-func checkHostServerProbe(t *testing.T, probe host.Server) {
-	switch probe.ProbeName {
-	case "AWS Server":
-		assert.Equal(t, probe.Host, "ubuntu@172.20.2.125")
-		assert.Equal(t, probe.BastionID, "aws")
-		assert.Equal(t, probe.PrivateKey, "/home/chenhao/.ssh/pem/my.pem")
-		assert.Equal(t, probe.Threshold.CPU, 0.75)
-		assert.Equal(t, probe.Threshold.Mem, 0.70)
-		assert.Equal(t, probe.Threshold.Disk, 0.90)
-		assert.Equal(t, probe.Channels(), []string{"general", "test"})
-	default:
-		t.Errorf("unexpected probe name %s", probe.ProbeName)
-	}
-}
-
 const confClient = `
 client:
   - name: Redis Native Client (local)
@@ -373,139 +208,6 @@ func checkClientProbe(t *testing.T, probe client.Client) {
 	}
 }
 
-const confNotify = `
-notify:
-  slack:
-    - name: "Slack"
-      webhook: "https://hooks.slack.com/services/xxx"
-      channels:
-        - "slack"
-        - "general"
-      #dry: true
-  discord:
-    - name: "Discord"
-      webhook: "https://discord.com/api/webhooks/xxx"
-      avatar: "https://img.icons8.com/ios/72/appointment-reminders--v1.png"
-      thumbnail: "https://freeiconshop.com/wp-content/uploads/edd/notification-flat.png"
-      dry: true
-      retry:
-        times: 3
-        interval: 10s
-    - name: "Test"
-      webhook: "https://discord.com/api/webhooks/xxx"
-      avatar: "https://img.icons8.com/ios/72/appointment-reminders--v1.png"
-      thumbnail: "https://freeiconshop.com/wp-content/uploads/edd/notification-flat.png"
-      retry:
-        times: 3
-        interval: 10s
-      channels:
-        - "general"
-  telegram:
-    - name: "Dev Channel"
-      token: 123456:xxxxx
-      chat_id: -1001343458903
-      channels:
-        - "telegram#Dev"
-        - "test"
-    - name: "Ops Group"
-      token: 123456:yyyyyy
-      #chat_id: -234234
-      chat_id: -12310934
-      dry: true
-      retry:
-        times: 3
-        interval: 8s
-  email:
-    - name: "email"
-      server: smtp.email.com:465
-      username: noreply@megaease.com
-      password: xxx
-      from: "send@email.com"
-      to: "test@email.com"
-      dry: true
-`
-
-func checkNotify(t *testing.T, n notify.Config) {
-	for _, s := range n.Slack {
-		checkSlackNotify(t, s)
-	}
-	for _, d := range n.Discord {
-		checkDiscordNotify(t, d)
-	}
-	for _, tg := range n.Telegram {
-		checkTelegramNotify(t, tg)
-	}
-	for _, e := range n.Email {
-		checkEmailNotify(t, e)
-	}
-}
-
-func checkSlackNotify(t *testing.T, n slack.NotifyConfig) {
-	switch n.NotifyName {
-	case "Slack":
-		assert.Equal(t, n.WebhookURL, "https://hooks.slack.com/services/xxx")
-		assert.Equal(t, n.Channels(), []string{"slack", "general"})
-		assert.Equal(t, n.Dry, false)
-	default:
-		t.Errorf("unexpected notify name %s", n.NotifyName)
-	}
-}
-
-func checkDiscordNotify(t *testing.T, n discord.NotifyConfig) {
-	switch n.NotifyName {
-	case "Discord":
-		assert.Equal(t, n.WebhookURL, "https://discord.com/api/webhooks/xxx")
-		assert.Equal(t, n.Avatar, "https://img.icons8.com/ios/72/appointment-reminders--v1.png")
-		assert.Equal(t, n.Thumbnail, "https://freeiconshop.com/wp-content/uploads/edd/notification-flat.png")
-		assert.Equal(t, n.Dry, true)
-		assert.Equal(t, n.Retry.Times, 3)
-		assert.Equal(t, n.Retry.Interval, 10*time.Second)
-	case "Test":
-		assert.Equal(t, n.WebhookURL, "https://discord.com/api/webhooks/xxx")
-		assert.Equal(t, n.Avatar, "https://img.icons8.com/ios/72/appointment-reminders--v1.png")
-		assert.Equal(t, n.Thumbnail, "https://freeiconshop.com/wp-content/uploads/edd/notification-flat.png")
-		assert.Equal(t, n.Dry, false)
-		assert.Equal(t, n.Retry.Times, 3)
-		assert.Equal(t, n.Retry.Interval, 10*time.Second)
-		assert.Equal(t, n.Channels(), []string{"general"})
-
-	default:
-		t.Errorf("unexpected notify name %s", n.NotifyName)
-	}
-}
-
-func checkTelegramNotify(t *testing.T, n telegram.NotifyConfig) {
-	switch n.NotifyName {
-	case "Dev Channel":
-		assert.Equal(t, n.Token, "123456:xxxxx")
-		assert.Equal(t, n.ChatID, "-1001343458903")
-		assert.Equal(t, n.Channels(), []string{"telegram#Dev", "test"})
-		assert.Equal(t, n.Dry, false)
-	case "Ops Group":
-		assert.Equal(t, n.Token, "123456:yyyyyy")
-		assert.Equal(t, n.ChatID, "-12310934")
-		assert.Equal(t, n.Dry, true)
-		assert.Equal(t, n.Retry.Times, 3)
-		assert.Equal(t, n.Retry.Interval, 8*time.Second)
-	default:
-		t.Errorf("unexpected notify name %s", n.NotifyName)
-	}
-}
-
-func checkEmailNotify(t *testing.T, n email.NotifyConfig) {
-	switch n.NotifyName {
-	case "email":
-		assert.Equal(t, n.Server, "smtp.email.com:465")
-		assert.Equal(t, n.User, "noreply@megaease.com")
-		assert.Equal(t, n.Pass, "xxx")
-		assert.Equal(t, n.From, "send@email.com")
-		assert.Equal(t, n.To, "test@email.com")
-		assert.Equal(t, n.Dry, true)
-	default:
-		t.Errorf("unexpected notify name %s", n.NotifyName)
-	}
-}
-
 const confSettings = `
 settings:
   name: "EaseProbeBot"
@@ -514,20 +216,6 @@ settings:
     ip: 127.0.0.1
     port: 8181
     refresh: 5s
-    log:
-      file: /tmp/log/easeprobe.access.log
-      self_rotate: true
-  sla:
-    schedule: "weekly"
-    time: "23:59"
-    backups: 20
-    channels:
-      - general
-  notify:
-    dry: true
-    retry:
-      times: 5
-      interval: 10s
   probe:
     interval: 15s
   log:
@@ -542,22 +230,13 @@ func checkSettings(t *testing.T, s Settings) {
 	assert.Equal(t, s.HTTPServer.IP, "127.0.0.1")
 	assert.Equal(t, s.HTTPServer.Port, "8181")
 	assert.Equal(t, s.HTTPServer.AutoRefreshTime, 5*time.Second)
-	assert.Equal(t, s.HTTPServer.AccessLog.File, "/tmp/log/easeprobe.access.log")
-	assert.Equal(t, s.HTTPServer.AccessLog.SelfRotate, true)
-	assert.Equal(t, s.SLAReport.Schedule, Weekly)
-	assert.Equal(t, s.SLAReport.Time, "23:59")
-	assert.Equal(t, s.SLAReport.Backups, 20)
-	assert.Equal(t, s.SLAReport.Channels, []string{"general"})
-	assert.Equal(t, s.Notify.Dry, true)
-	assert.Equal(t, s.Notify.Retry.Times, 5)
-	assert.Equal(t, s.Notify.Retry.Interval, 10*time.Second)
 	assert.Equal(t, s.Probe.Interval, 15*time.Second)
 	assert.Equal(t, s.Log.Level, LogLevel(log.DebugLevel))
 	assert.Equal(t, s.Log.MaxSize, 1)
 	assert.Equal(t, s.TimeFormat, "2006-01-02 15:04:05 UTC")
 }
 
-const confYAML = confVer + confHTTP + confSSH + confHost + confClient + confNotify + confSettings
+const confYAML = confVer + confHTTP + confClient + confSettings
 
 func writeConfig(file, content string) error {
 	return os.WriteFile(file, []byte(content), 0644)
@@ -608,23 +287,14 @@ func TestConfig(t *testing.T) {
 	for _, v := range conf.TCP {
 		checkTCPProbe(t, v)
 	}
-	for _, v := range conf.Shell {
-		checkShellProbe(t, v)
-	}
 	for _, v := range conf.Client {
 		checkClientProbe(t, v)
 	}
-	checkSSHProbe(t, conf.SSH)
-	checkHostProbe(t, conf.Host)
-
-	checkNotify(t, conf.Notify)
 	checkSettings(t, conf.Settings)
 
 	conf.InitAllLogs()
 	probers := conf.AllProbers()
 	assert.Equal(t, 9, len(probers))
-	notifiers := conf.AllNotifiers()
-	assert.Equal(t, 6, len(notifiers))
 
 	go httpServer("65535")
 	url := "http://localhost:65535"
@@ -643,8 +313,6 @@ func TestConfig(t *testing.T) {
 
 	probers = conf.AllProbers()
 	assert.Equal(t, 9, len(probers))
-	notifiers = conf.AllNotifiers()
-	assert.Equal(t, 6, len(notifiers))
 
 	os.RemoveAll(file)
 	os.RemoveAll("data")
@@ -668,54 +336,6 @@ func TestConfig(t *testing.T) {
 	monkey.UnpatchAll()
 }
 
-func TestInitData(t *testing.T) {
-	c := Conf{}
-
-	// data file disabled
-	c.Settings.SLAReport.DataFile = "-"
-	c.initData()
-	assert.NoFileExists(t, c.Settings.SLAReport.DataFile)
-
-	// default data file will be used
-	c.Settings.SLAReport.DataFile = ""
-	c.initData()
-	assert.Equal(t, global.DefaultDataFile, c.Settings.SLAReport.DataFile)
-	assert.DirExists(t, "data")
-	os.RemoveAll("data")
-
-	c.Settings.SLAReport.DataFile = "mydata/sla.yaml"
-	c.initData()
-	assert.Equal(t, "mydata/sla.yaml", c.Settings.SLAReport.DataFile)
-	assert.DirExists(t, "mydata")
-
-	os.WriteFile("mydata/sla.yaml", []byte("key : value"), 0644)
-	c.initData()
-	os.RemoveAll("mydata")
-
-	monkey.Patch(os.MkdirAll, func(path string, perm os.FileMode) error {
-		return fmt.Errorf("MkdirAll")
-	})
-	c.initData()
-	assert.NoDirExists(t, "mydata")
-	monkey.Unpatch(os.MkdirAll)
-}
-
-func TestEmptyNotifies(t *testing.T) {
-	myConf := confVer
-	file := "./config.yaml"
-	err := writeConfig(file, myConf)
-	assert.Nil(t, err)
-
-	conf, err := New(&file)
-	assert.Nil(t, err)
-	notifiers := conf.AllNotifiers()
-	assert.Nil(t, err)
-	assert.Equal(t, 0, len(notifiers))
-
-	os.RemoveAll(file)
-	os.RemoveAll("data")
-}
-
 func TestEmptyProbes(t *testing.T) {
 	myConf := confVer
 	file := "./config.yaml"
@@ -729,20 +349,6 @@ func TestEmptyProbes(t *testing.T) {
 
 	os.RemoveAll(file)
 	os.RemoveAll("data")
-}
-
-func TestJSONSchema(t *testing.T) {
-	schema, err := JSONSchema()
-	assert.Nil(t, err)
-	assert.NotEmpty(t, schema)
-
-	monkey.Patch(json.MarshalIndent, func(v interface{}, prefix, indent string) ([]byte, error) {
-		return nil, fmt.Errorf("error")
-	})
-	schema, err = JSONSchema()
-	assert.NotNil(t, err)
-	assert.Empty(t, schema)
-	monkey.UnpatchAll()
 }
 
 func TestFileConfigModificaiton(t *testing.T) {

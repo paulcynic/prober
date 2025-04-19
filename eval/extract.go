@@ -8,10 +8,7 @@ import (
 	"strings"
 	"time"
 
-	hq "github.com/antchfx/htmlquery"
 	jq "github.com/antchfx/jsonquery"
-	xq "github.com/antchfx/xmlquery"
-	"golang.org/x/net/html"
 )
 
 // Extractor is the interface for all extractors
@@ -149,7 +146,7 @@ func (x *BaseExtractor) ExtractDuration() (time.Duration, error) {
 
 // XPathNode is the generic type for xpath node
 type XPathNode interface {
-	jq.Node | xq.Node | html.Node
+    jq.Node
 }
 
 // XPathExtractor is a struct for extracting values from a html/xml/json string
@@ -207,49 +204,6 @@ func NewJSONExtractor(document string) *XPathExtractor[jq.Node] {
 			return n.InnerText()
 		},
 	}
-	x.ExtractStrFn = x.ExtractStr
-	return x
-}
-
-// NewXMLExtractor creates a new XMLExtractor
-func NewXMLExtractor(document string) *XPathExtractor[xq.Node] {
-	x := &XPathExtractor[xq.Node]{
-		BaseExtractor: BaseExtractor{
-			VarType:  String,
-			Document: document,
-		},
-		Parser: func(document string) (*xq.Node, error) {
-			return xq.Parse(strings.NewReader(document))
-		},
-		Query: func(doc *xq.Node, xpath string) (*xq.Node, error) {
-			return xq.Query(doc, xpath)
-		},
-		Inner: func(n *xq.Node) string {
-			return n.InnerText()
-		},
-	}
-	x.ExtractStrFn = x.ExtractStr
-	return x
-}
-
-// NewHTMLExtractor creates a new HTMLExtractor
-func NewHTMLExtractor(document string) *XPathExtractor[html.Node] {
-	x := &XPathExtractor[html.Node]{
-		BaseExtractor: BaseExtractor{
-			VarType:  String,
-			Document: document,
-		},
-		Parser: func(document string) (*html.Node, error) {
-			return html.Parse(strings.NewReader(document))
-		},
-		Query: func(doc *html.Node, xpath string) (*html.Node, error) {
-			return hq.Query(doc, xpath)
-		},
-		Inner: func(n *html.Node) string {
-			return hq.InnerText(n)
-		},
-	}
-	x.Document = document
 	x.ExtractStrFn = x.ExtractStr
 	return x
 }
