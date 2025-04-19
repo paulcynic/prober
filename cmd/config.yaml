@@ -1,11 +1,22 @@
 tcp:
-  - name: LocalPythonServer
-    host: 127.0.0.1:8001
+  - name: VPNService
+    host: paulcynic.fvds.ru:54321
+
+http:
+  - name: VPNService-HTTP
+    url: http://paulcynic.fvds.ru:54321
+    method: GET
+
+tls:
+  - name: VPNService-TLS
+    host: paulcynic.fvds.ru:54321
 
 settings:
   pid: /tmp/easeprobe.pid
   name: MyService
   timeformat: "2001-01-01 00:00:00"
+  log:
+    level: info
   probe:
     timeout: 2s
     interval: 15s

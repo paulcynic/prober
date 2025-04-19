@@ -103,7 +103,6 @@ type Conf struct {
 	Settings Settings        `yaml:"settings" json:"settings,omitempty" jsonschema:"title=Global Settings,description=EaseProbe Global configuration"`
 }
 
-
 // Check if string is a url
 func isExternalURL(url string) bool {
 	if _, err := netUrl.ParseRequestURI(url); err != nil {

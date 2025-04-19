@@ -63,18 +63,15 @@ func runProbers(probers []probe.Prober, wg *sync.WaitGroup, done chan bool, save
 		interval := time.NewTimer(p.Interval())
 		defer interval.Stop()
 		for {
-			res := p.Probe()
+            res := p.Probe()
 			log.Debugf("%s: %s", p.Kind(), res.DebugJSON())
-			// send the result to the persistent channel
-			saveChannel <- res
-			// send the result to all channels
 			select {
 			case <-done:
 				log.Infof("%s / %s - Received the done signal, exiting...", p.Kind(), p.Name())
 				return
 			case <-interval.C:
 				interval.Reset(p.Interval())
-				log.Debugf("%s / %s - %s Interval is up, continue...", p.Kind(), p.Name(), p.Interval())
+				log.Infof("%s / %s - %s Interval is up, continue...", p.Kind(), p.Name(), p.Interval())
 			}
 		}
 	}
