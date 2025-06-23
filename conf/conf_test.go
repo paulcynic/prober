@@ -14,6 +14,7 @@ import (
 	clientConf "github.com/megaease/easeprobe/probe/client/conf"
 	httpProbe "github.com/megaease/easeprobe/probe/http"
 	"github.com/megaease/easeprobe/probe/tcp"
+	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
@@ -263,18 +264,19 @@ func TestConfig(t *testing.T) {
 
 	// bad config
 	os.Setenv("WEB_SITE", "\n - x::")
-	_, err = New(&file)
+	metrics := NewConfigMetrics(prometheus.Labels{})
+	_, err = New(&file, metrics)
 	assert.NotNil(t, err)
 
 	os.Setenv("WEB_SITE", "https://easeprobe.com")
 	monkey.Patch(yaml.Marshal, func(v interface{}) ([]byte, error) {
 		return nil, errors.New("marshal error")
 	})
-	_, err = New(&file)
+	_, err = New(&file, metrics)
 	assert.Nil(t, err)
 	monkey.UnpatchAll()
 
-	_, err = New(&file)
+	_, err = New(&file, metrics)
 	assert.Nil(t, err)
 	conf := Get()
 
@@ -300,16 +302,16 @@ func TestConfig(t *testing.T) {
 	url := "http://localhost:65535"
 	os.Setenv("HTTP_AUTHORIZATION", "Basic dXNlcm5hbWU6cGFzc3dvcmQ=")
 	os.Setenv("HTTP_TIMEOUT", "10")
-	httpConf, err := New(&url)
+	httpConf, err := New(&url, metrics)
 	assert.Nil(t, err)
 	assert.Equal(t, "EaseProbeBot", httpConf.Settings.Name)
 	assert.Equal(t, "0.1.0", httpConf.Version)
 
 	// test config modification
-	assert.False(t, IsConfigModified(url))
-	assert.False(t, IsConfigModified(url))
+	assert.False(t, IsConfigModified(url, metrics))
+	assert.False(t, IsConfigModified(url, metrics))
 	url += "/modified"
-	assert.True(t, IsConfigModified(url))
+	assert.True(t, IsConfigModified(url, metrics))
 
 	probers = conf.AllProbers()
 	assert.Equal(t, 9, len(probers))
@@ -319,18 +321,18 @@ func TestConfig(t *testing.T) {
 
 	// error test
 	url = "http://localhost:65534"
-	_, err = New(&url)
+	_, err = New(&url, metrics)
 	assert.NotNil(t, err)
 
 	os.Setenv("HTTP_TIMEOUT", "invalid")
-	_, err = New(&url)
+	_, err = New(&url, metrics)
 	assert.NotNil(t, err)
 
 	monkey.Patch(httpClient.NewRequest, func(method, url string, body io.Reader) (*http.Request, error) {
 		return nil, errors.New("error")
 	})
 	url = "http://localhost"
-	_, err = New(&url)
+	_, err = New(&url, metrics)
 	assert.NotNil(t, err)
 
 	monkey.UnpatchAll()
@@ -342,7 +344,8 @@ func TestEmptyProbes(t *testing.T) {
 	err := writeConfig(file, myConf)
 	assert.Nil(t, err)
 
-	conf, err := New(&file)
+	metrics := NewConfigMetrics(prometheus.Labels{})
+	conf, err := New(&file, metrics)
 	assert.Nil(t, err)
 	probers := conf.AllProbers()
 	assert.Equal(t, 0, len(probers))
@@ -352,23 +355,24 @@ func TestEmptyProbes(t *testing.T) {
 }
 
 func TestFileConfigModificaiton(t *testing.T) {
+	metrics := NewConfigMetrics(prometheus.Labels{})
 	file := "./config.yaml"
 	err := writeConfig(file, confYAML)
 	assert.Nil(t, err)
 	ResetPreviousYAMLFile()
-	assert.False(t, IsConfigModified(file))
-	assert.False(t, IsConfigModified(file))
+	assert.False(t, IsConfigModified(file, metrics))
+	assert.False(t, IsConfigModified(file, metrics))
 
 	err = writeConfig(file, confYAML+"  \n\n")
 	assert.Nil(t, err)
-	assert.True(t, IsConfigModified(file))
-	assert.False(t, IsConfigModified(file))
+	assert.True(t, IsConfigModified(file, metrics))
+	assert.False(t, IsConfigModified(file, metrics))
 
 	err = writeConfig(file, confYAML+"\ninvalid")
 	assert.Nil(t, err)
-	assert.False(t, IsConfigModified(file))
+	assert.False(t, IsConfigModified(file, metrics))
 
 	os.RemoveAll(file)
-	assert.False(t, IsConfigModified(file))
+	assert.False(t, IsConfigModified(file, metrics))
 
 }

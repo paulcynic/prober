@@ -17,6 +17,7 @@ import (
 	"github.com/megaease/easeprobe/global"
 	"github.com/megaease/easeprobe/probe"
 	"github.com/megaease/easeprobe/web"
+	"github.com/prometheus/client_golang/prometheus"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -67,7 +68,8 @@ func main() {
 		os.Exit(0)
 	}
 
-	c, err := conf.New(yamlFile)
+	metrics := conf.NewConfigMetrics(prometheus.Labels{})
+	c, err := conf.New(yamlFile, metrics)
 	if err != nil {
 		log.Errorln("Fatal: Cannot read the YAML configuration file!")
 		os.Exit(-1)
@@ -124,14 +126,13 @@ func main() {
 	// the exit channel for all probers
 	doneProbe := make(chan bool, len(probers))
 	// 2) Start the Probers
-    doneSave := make(chan bool)
-    // the channel for saving the probe result data
-    saveChannel := make(chan probe.Result, len(probers))
+	doneSave := make(chan bool)
+	// the channel for saving the probe result data
+	saveChannel := make(chan probe.Result, len(probers))
 
 	runProbers(probers, &wg, doneProbe, saveChannel)
 	// 4) Set probers into web server
 	web.SetProbers(probers)
-
 
 	////////////////////////////////////////////////////////////////////////////
 	//                          Rotate the log file                           //
@@ -191,7 +192,7 @@ func main() {
 
 	// Monitor the configuration file
 	monConf := make(chan bool, 1)
-	go monitorYAMLFile(*yamlFile, monConf)
+	go monitorYAMLFile(*yamlFile, monConf, metrics)
 
 	// wait for the exit and restart signal
 	select {
@@ -206,9 +207,9 @@ func main() {
 	log.Info("Graceful Exit Successfully!")
 }
 
-func monitorYAMLFile(path string, monConf chan bool) {
+func monitorYAMLFile(path string, monConf chan bool, metrics *conf.ConfigMetrics) {
 	for {
-		if conf.IsConfigModified(path) {
+		if conf.IsConfigModified(path, metrics) {
 			log.Infof("The configuration file [%s] has been modified, restarting...", path)
 			monConf <- true
 			break

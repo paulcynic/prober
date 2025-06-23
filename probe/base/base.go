@@ -1,4 +1,3 @@
-
 // Package base is the base package for all probes
 package base
 
@@ -30,18 +29,18 @@ type ProbeFuncType func() (bool, string)
 
 // DefaultProbe is the default options for all probe
 type DefaultProbe struct {
-	ProbeKind                            string            `yaml:"-" json:"-"`
-	ProbeTag                             string            `yaml:"-" json:"-"`
-	ProbeName                            string            `yaml:"name" json:"name" jsonschema:"required,title=Probe Name,description=the name of probe must be unique"`
-	ProbeChannels                        []string          `yaml:"channels" json:"channels,omitempty" jsonschema:"title=Probe Channels,description=the channels of probe message need to send to"`
-	ProbeTimeout                         time.Duration     `yaml:"timeout,omitempty" json:"timeout,omitempty" jsonschema:"type=string,format=duration,title=Probe Timeout,description=the timeout of probe"`
+	ProbeKind                            string            `yaml:"-"                  json:"-"`
+	ProbeTag                             string            `yaml:"-"                  json:"-"`
+	ProbeName                            string            `yaml:"name"               json:"name"               jsonschema:"required,title=Probe Name,description=the name of probe must be unique"`
+	ProbeChannels                        []string          `yaml:"channels"           json:"channels,omitempty" jsonschema:"title=Probe Channels,description=the channels of probe message need to send to"`
+	ProbeTimeout                         time.Duration     `yaml:"timeout,omitempty"  json:"timeout,omitempty"  jsonschema:"type=string,format=duration,title=Probe Timeout,description=the timeout of probe"`
 	ProbeTimeInterval                    time.Duration     `yaml:"interval,omitempty" json:"interval,omitempty" jsonschema:"type=string,format=duration,title=Probe Interval,description=the interval of probe"`
-	Labels                               prometheus.Labels `yaml:"labels,omitempty" json:"labels,omitempty" jsonschema:"title=Probe LabelMap,description=the labels of probe"`
+	Labels                               prometheus.Labels `yaml:"labels,omitempty"   json:"labels,omitempty"   jsonschema:"title=Probe LabelMap,description=the labels of probe"`
 	global.StatusChangeThresholdSettings `yaml:",inline" json:",inline"`
 	global.NotificationStrategySettings  `yaml:"alert" json:"alert" jsonschema:"title=Probe Alert,description=the alert strategy of probe"`
-	ProbeFunc                            ProbeFuncType `yaml:"-" json:"-"`
-	ProbeResult                          *probe.Result `yaml:"-" json:"-"`
-	metrics                              *metrics      `yaml:"-" json:"-"`
+	ProbeFunc                            ProbeFuncType `yaml:"-"                  json:"-"`
+	ProbeResult                          *probe.Result `yaml:"-"                  json:"-"`
+	metrics                              *metrics      `yaml:"-"                  json:"-"`
 }
 
 // LabelMap return the const metric labels  for a probe in the configuration.
@@ -99,20 +98,36 @@ func (d *DefaultProbe) CheckStatusThreshold() probe.Status {
 	s := d.StatusChangeThresholdSettings
 	c := d.ProbeResult.Stat.StatusCounter
 	title := d.LogTitle()
-	log.Debugf("%s - Status Threshold Checking - Current[%v], StatusCnt[%d], FailureThread[%d], SuccessThread[%d]",
-		title, c.CurrentStatus, c.StatusCount, s.Failure, s.Success)
+	log.Debugf(
+		"%s - Status Threshold Checking - Current[%v], StatusCnt[%d], FailureThread[%d], SuccessThread[%d]",
+		title,
+		c.CurrentStatus,
+		c.StatusCount,
+		s.Failure,
+		s.Success,
+	)
 
 	if c.CurrentStatus == true && c.StatusCount >= s.Success {
 		if d.ProbeResult.Status != probe.StatusUp {
 			cnt := math.Max(float64(c.StatusCount), float64(s.Success))
-			log.Infof("%s - Status is UP! Threshold reached for success [%d/%d]", title, int(cnt), s.Success)
+			log.Infof(
+				"%s - Status is UP! Threshold reached for success [%d/%d]",
+				title,
+				int(cnt),
+				s.Success,
+			)
 		}
 		return probe.StatusUp
 	}
 	if c.CurrentStatus == false && c.StatusCount >= s.Failure {
 		if d.ProbeResult.Status != probe.StatusDown {
 			cnt := math.Max(float64(c.StatusCount), float64(s.Failure))
-			log.Infof("%s - Status is DOWN! Threshold reached for failure [%d/%d]", title, int(cnt), s.Failure)
+			log.Infof(
+				"%s - Status is DOWN! Threshold reached for failure [%d/%d]",
+				title,
+				int(cnt),
+				s.Failure,
+			)
 		}
 		return probe.StatusDown
 	}
@@ -128,8 +143,8 @@ func (d *DefaultProbe) CheckStatusThreshold() probe.Status {
 
 // Config default config
 func (d *DefaultProbe) Config(gConf global.ProbeSettings,
-	kind, tag, name, endpoint string, fn ProbeFuncType) error {
-
+	kind, tag, name, endpoint string, fn ProbeFuncType,
+) error {
 	d.ProbeKind = kind
 	d.ProbeName = name
 	d.ProbeTag = tag
@@ -138,7 +153,9 @@ func (d *DefaultProbe) Config(gConf global.ProbeSettings,
 	d.ProbeTimeout = gConf.NormalizeTimeOut(d.ProbeTimeout)
 	d.ProbeTimeInterval = gConf.NormalizeInterval(d.ProbeTimeInterval)
 	d.StatusChangeThresholdSettings = gConf.NormalizeThreshold(d.StatusChangeThresholdSettings)
-	d.NotificationStrategySettings = gConf.NormalizeNotificationStrategy(d.NotificationStrategySettings)
+	d.NotificationStrategySettings = gConf.NormalizeNotificationStrategy(
+		d.NotificationStrategySettings,
+	)
 
 	d.ProbeResult = probe.NewResultWithName(name)
 	d.ProbeResult.Name = name
@@ -164,7 +181,12 @@ func (d *DefaultProbe) Config(gConf global.ProbeSettings,
 	log.Infof("Probe %s base options are configured!", d.LogTitle())
 
 	if d.Failure > 1 || d.Success > 1 {
-		log.Infof("Probe %s Status Threshold are configured! failure[%d], success[%d]", d.LogTitle(), d.Failure, d.Success)
+		log.Infof(
+			"Probe %s Status Threshold are configured! failure[%d], success[%d]",
+			d.LogTitle(),
+			d.Failure,
+			d.Success,
+		)
 	}
 
 	d.metrics = newMetrics(kind, tag, d.Labels)
@@ -266,7 +288,6 @@ func (d *DefaultProbe) ExportMetrics() {
 
 // DownTimeCalculation calculate the down time
 func (d *DefaultProbe) DownTimeCalculation(status probe.Status) {
-
 	// Status from UP to DOWN - Failure
 	if d.ProbeResult.PreStatus != probe.StatusDown && status == probe.StatusDown {
 		d.ProbeResult.LatestDownTime = time.Now().UTC()
@@ -308,7 +329,12 @@ func (d *DefaultProbe) GetProxyConnection(socks5 string, host string) (net.Conn,
 			}
 		}
 
-		log.Debugf("[%s / %s] - Using the proxy server [%s] for connection", d.ProbeKind, d.ProbeName, socks5)
+		log.Debugf(
+			"[%s / %s] - Using the proxy server [%s] for connection",
+			d.ProbeKind,
+			d.ProbeName,
+			socks5,
+		)
 		return proxyDialer.Dial("tcp", host)
 	}
 	return net.DialTimeout("tcp", host, d.ProbeTimeout)

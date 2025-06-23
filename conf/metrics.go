@@ -1,19 +1,40 @@
 package conf
 
 import (
+	"github.com/megaease/easeprobe/global"
+	"github.com/megaease/easeprobe/metric"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var (
-	ConfigFetchFailure = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "easeprobe_config_fetch_failure_total",
-			Help: "Total number of failed config fetch attempts via HTTP",
-		},
-		[]string{"url"},
-	)
-)
+// metrics is the conf metrics
+type metrics struct {
+	Duration *prometheus.GaugeVec
+	Status   *prometheus.GaugeVec
+}
 
-func init() {
-	prometheus.MustRegister(ConfigFetchFailure)
+// newMetrics create the metrics
+func newMetrics(constLabels prometheus.Labels) *metrics {
+	namespace := global.GetEaseProbe().Name
+	subsystem := "config"
+	name := "availability"
+	return &metrics{
+		Duration: metric.NewGauge(
+			namespace,
+			subsystem,
+			name,
+			"timestamp",
+			"Unix timestamp (in seconds) when the config was last successfully fetched via HTTP",
+			[]string{"endpoint"},
+			constLabels,
+		),
+		Status: metric.NewGauge(
+			namespace,
+			subsystem,
+			name,
+			"status",
+			"Whether the config is currently available via HTTP (1=available, 0=not available)",
+			[]string{"endpoint"},
+			constLabels,
+		),
+	}
 }

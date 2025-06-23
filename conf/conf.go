@@ -14,11 +14,13 @@ import (
 	"time"
 
 	"github.com/megaease/easeprobe/global"
+	"github.com/megaease/easeprobe/metric"
 	"github.com/megaease/easeprobe/probe"
 	"github.com/megaease/easeprobe/probe/client"
 	"github.com/megaease/easeprobe/probe/http"
 	"github.com/megaease/easeprobe/probe/tcp"
 	"github.com/megaease/easeprobe/probe/tls"
+	"github.com/prometheus/client_golang/prometheus"
 
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
@@ -68,38 +70,38 @@ func (s *Schedule) UnmarshalYAML(unmarshal func(interface{}) error) error {
 // Probe is the settings of prober
 type Probe struct {
 	Interval                             time.Duration `yaml:"interval" json:"interval,omitempty" jsonschema:"type=string,format=duration,title=Probe Interval,description=the interval of probe,default=1m"`
-	Timeout                              time.Duration `yaml:"timeout" json:"timeout,omitempty" jsonschema:"type=string,format=duration,title=Probe Timeout,description=the timeout of probe,default=30s"`
+	Timeout                              time.Duration `yaml:"timeout"  json:"timeout,omitempty"  jsonschema:"type=string,format=duration,title=Probe Timeout,description=the timeout of probe,default=30s"`
 	global.StatusChangeThresholdSettings `yaml:",inline" json:",inline"`
 	global.NotificationStrategySettings  `yaml:"alert" json:"alert" jsonschema:"title=Alert,description=the alert settings"`
 }
 
 // HTTPServer is the settings of http server
 type HTTPServer struct {
-	IP              string        `yaml:"ip" json:"ip" jsonschema:"title=Web Server IP,description=the local ip address of the http server need to listen on,example=0.0.0.0"`
-	Port            string        `yaml:"port" json:"port" jsonschema:"type=integer,title=Web Server Port,description=port of the http server,default=8181"`
+	IP              string        `yaml:"ip"      json:"ip"                jsonschema:"title=Web Server IP,description=the local ip address of the http server need to listen on,example=0.0.0.0"`
+	Port            string        `yaml:"port"    json:"port"              jsonschema:"type=integer,title=Web Server Port,description=port of the http server,default=8181"`
 	AutoRefreshTime time.Duration `yaml:"refresh" json:"refresh,omitempty" jsonschema:"type=string,title=Auto Refresh Time,description=auto refresh time of the http server,example=5s"`
-	AccessLog       Log           `yaml:"log" json:"log,omitempty" jsonschema:"title=Access Log,description=access log of the http server"`
+	AccessLog       Log           `yaml:"log"     json:"log,omitempty"     jsonschema:"title=Access Log,description=access log of the http server"`
 }
 
 // Settings is the EaseProbe configuration
 type Settings struct {
-	Name       string     `yaml:"name" json:"name,omitempty" jsonschema:"title=EaseProbe Name,description=The name of the EaseProbe instance,default=EaseProbe"`
-	IconURL    string     `yaml:"icon" json:"icon,omitempty" jsonschema:"title=Icon URL,description=The URL of the icon of the EaseProbe instance"`
-	PIDFile    string     `yaml:"pid" json:"pid,omitempty" jsonschema:"title=PID File,description=The PID file of the EaseProbe instance ('' or '-' means no PID file)"`
-	Log        Log        `yaml:"log" json:"log,omitempty" jsonschema:"title=EaseProbe Log,description=The log settings of the EaseProbe instance"`
+	Name       string     `yaml:"name"       json:"name,omitempty"       jsonschema:"title=EaseProbe Name,description=The name of the EaseProbe instance,default=EaseProbe"`
+	IconURL    string     `yaml:"icon"       json:"icon,omitempty"       jsonschema:"title=Icon URL,description=The URL of the icon of the EaseProbe instance"`
+	PIDFile    string     `yaml:"pid"        json:"pid,omitempty"        jsonschema:"title=PID File,description=The PID file of the EaseProbe instance ('' or '-' means no PID file)"`
+	Log        Log        `yaml:"log"        json:"log,omitempty"        jsonschema:"title=EaseProbe Log,description=The log settings of the EaseProbe instance"`
 	TimeFormat string     `yaml:"timeformat" json:"timeformat,omitempty" jsonschema:"title=Time Format,description=The time format of the EaseProbe instance,default=2006-01-02 15:04:05Z07:00"`
-	TimeZone   string     `yaml:"timezone" json:"timezone,omitempty" jsonschema:"title=Time Zone,description=The time zone of the EaseProbe instance,example=Asia/Shanghai,example=Europe/Berlin,default=UTC"`
-	Probe      Probe      `yaml:"probe" json:"probe,omitempty" jsonschema:"title=Probe Settings,description=The global probe settings of the EaseProbe instance"`
-	HTTPServer HTTPServer `yaml:"http" json:"http,omitempty" jsonschema:"title=HTTP Server Settings,description=The HTTP server settings of the EaseProbe instance"`
+	TimeZone   string     `yaml:"timezone"   json:"timezone,omitempty"   jsonschema:"title=Time Zone,description=The time zone of the EaseProbe instance,example=Asia/Shanghai,example=Europe/Berlin,default=UTC"`
+	Probe      Probe      `yaml:"probe"      json:"probe,omitempty"      jsonschema:"title=Probe Settings,description=The global probe settings of the EaseProbe instance"`
+	HTTPServer HTTPServer `yaml:"http"       json:"http,omitempty"       jsonschema:"title=HTTP Server Settings,description=The HTTP server settings of the EaseProbe instance"`
 }
 
 // Conf is Probe configuration
 type Conf struct {
-	Version  string          `yaml:"version" json:"version,omitempty" jsonschema:"title=Version,description=Version of the EaseProbe configuration"`
-	HTTP     []http.HTTP     `yaml:"http" json:"http,omitempty" jsonschema:"title=HTTP Probe,description=HTTP Probe Configuration"`
-	TCP      []tcp.TCP       `yaml:"tcp" json:"tcp,omitempty" jsonschema:"title=TCP Probe,description=TCP Probe Configuration"`
-	Client   []client.Client `yaml:"client" json:"client,omitempty" jsonschema:"title=Native Client Probe,description=Native Client Probe Configuration"`
-	TLS      []tls.TLS       `yaml:"tls" json:"tls,omitempty" jsonschema:"title=TLS Probe,description=TLS Probe Configuration"`
+	Version  string          `yaml:"version"  json:"version,omitempty"  jsonschema:"title=Version,description=Version of the EaseProbe configuration"`
+	HTTP     []http.HTTP     `yaml:"http"     json:"http,omitempty"     jsonschema:"title=HTTP Probe,description=HTTP Probe Configuration"`
+	TCP      []tcp.TCP       `yaml:"tcp"      json:"tcp,omitempty"      jsonschema:"title=TCP Probe,description=TCP Probe Configuration"`
+	Client   []client.Client `yaml:"client"   json:"client,omitempty"   jsonschema:"title=Native Client Probe,description=Native Client Probe Configuration"`
+	TLS      []tls.TLS       `yaml:"tls"      json:"tls,omitempty"      jsonschema:"title=TLS Probe,description=TLS Probe Configuration"`
 	Settings Settings        `yaml:"settings" json:"settings,omitempty" jsonschema:"title=Global Settings,description=EaseProbe Global configuration"`
 }
 
@@ -112,17 +114,22 @@ func isExternalURL(url string) bool {
 
 	parts, err := netUrl.Parse(url)
 	if err != nil || parts.Host == "" || !strings.HasPrefix(parts.Scheme, "http") {
-		log.Debugf("Parse: %s failed Scheme: %s, Host: %s (err: %v)", url, parts.Scheme, parts.Host, err)
+		log.Debugf(
+			"Parse: %s failed Scheme: %s, Host: %s (err: %v)",
+			url,
+			parts.Scheme,
+			parts.Host,
+			err,
+		)
 		return false
 	}
 
 	return true
 }
 
-func getYamlFileFromHTTP(url string) ([]byte, error) {
+func getYamlFileFromHTTP(url string, metrics *ConfigMetrics) ([]byte, error) {
 	r, err := httpClient.NewRequest("GET", url, nil)
 	if err != nil {
-		ConfigFetchFailure.WithLabelValues(url).Inc()
 		return nil, err
 	}
 	if os.Getenv("HTTP_AUTHORIZATION") != "" {
@@ -133,7 +140,6 @@ func getYamlFileFromHTTP(url string) ([]byte, error) {
 	if os.Getenv("HTTP_TIMEOUT") != "" {
 		timeout, err := strconv.ParseInt(os.Getenv("HTTP_TIMEOUT"), 10, 64)
 		if err != nil {
-			ConfigFetchFailure.WithLabelValues(url).Inc()
 			return nil, err
 		}
 		httpClientObject.Timeout = time.Duration(timeout) * time.Second
@@ -141,9 +147,14 @@ func getYamlFileFromHTTP(url string) ([]byte, error) {
 
 	resp, err := httpClientObject.Do(r)
 	if err != nil {
-		ConfigFetchFailure.WithLabelValues(url).Inc()
+		metrics.Status.With(metric.AddConstLabels(prometheus.Labels{
+			"endpoint": url,
+		}, prometheus.Labels{})).Set(float64(0))
 		return nil, err
 	}
+	metrics.Status.With(metric.AddConstLabels(prometheus.Labels{
+		"endpoint": url,
+	}, prometheus.Labels{})).Set(float64(1))
 	defer resp.Body.Close()
 	return io.ReadAll(resp.Body)
 }
@@ -159,9 +170,9 @@ func getYamlFileFromFile(path string) ([]byte, error) {
 	return os.ReadFile(path)
 }
 
-func getYamlFile(path string) ([]byte, error) {
+func getYamlFile(path string, metrics *ConfigMetrics) ([]byte, error) {
 	if isExternalURL(path) {
-		return getYamlFileFromHTTP(path)
+		return getYamlFileFromHTTP(path, metrics)
 	}
 	return getYamlFileFromFile(path)
 }
@@ -175,12 +186,11 @@ func ResetPreviousYAMLFile() {
 }
 
 // IsConfigModified checks if the configuration file is modified
-func IsConfigModified(path string) bool {
-
+func IsConfigModified(path string, metrics *ConfigMetrics) bool {
 	var content []byte
 	var err error
 	if isExternalURL(path) {
-		content, err = getYamlFileFromHTTP(path)
+		content, err = getYamlFileFromHTTP(path, metrics)
 	} else {
 		content, err = getYamlFileFromFile(path)
 	}
@@ -211,7 +221,7 @@ func IsConfigModified(path string) bool {
 }
 
 // New read the configuration from yaml
-func New(conf *string) (*Conf, error) {
+func New(conf *string, metrics *ConfigMetrics) (*Conf, error) {
 	c := Conf{
 		HTTP:   []http.HTTP{},
 		TCP:    []tcp.TCP{},
@@ -235,7 +245,7 @@ func New(conf *string) (*Conf, error) {
 			},
 		},
 	}
-	y, err := getYamlFile(*conf)
+	y, err := getYamlFile(*conf, metrics)
 	if err != nil {
 		log.Errorf("error: %v ", err)
 		return &c, err
@@ -271,7 +281,6 @@ func New(conf *string) (*Conf, error) {
 
 // InitAllLogs initialize all logs
 func (conf *Conf) InitAllLogs() {
-
 	conf.Settings.Log.InitLog(nil)
 	conf.Settings.Log.LogInfo("Application")
 
@@ -292,7 +301,6 @@ func (conf *Conf) AllProbers() []probe.Prober {
 }
 
 func allProbersHelper(i interface{}) []probe.Prober {
-
 	var probers []probe.Prober
 	t := reflect.TypeOf(i)
 	v := reflect.ValueOf(i)
@@ -316,7 +324,12 @@ func allProbersHelper(i interface{}) []probe.Prober {
 				continue
 			}
 
-			log.Debugf("--> %s / %s / %+v", t.Field(i).Name, t.Field(i).Type.Kind(), vField.Index(j))
+			log.Debugf(
+				"--> %s / %s / %+v",
+				t.Field(i).Name,
+				t.Field(i).Type.Kind(),
+				vField.Index(j),
+			)
 			probers = append(probers, vField.Index(j).Addr().Interface().(probe.Prober))
 		}
 	}
