@@ -122,6 +122,7 @@ func isExternalURL(url string) bool {
 func getYamlFileFromHTTP(url string) ([]byte, error) {
 	r, err := httpClient.NewRequest("GET", url, nil)
 	if err != nil {
+		ConfigFetchFailure.WithLabelValues(url).Inc()
 		return nil, err
 	}
 	if os.Getenv("HTTP_AUTHORIZATION") != "" {
@@ -132,6 +133,7 @@ func getYamlFileFromHTTP(url string) ([]byte, error) {
 	if os.Getenv("HTTP_TIMEOUT") != "" {
 		timeout, err := strconv.ParseInt(os.Getenv("HTTP_TIMEOUT"), 10, 64)
 		if err != nil {
+			ConfigFetchFailure.WithLabelValues(url).Inc()
 			return nil, err
 		}
 		httpClientObject.Timeout = time.Duration(timeout) * time.Second
@@ -139,6 +141,7 @@ func getYamlFileFromHTTP(url string) ([]byte, error) {
 
 	resp, err := httpClientObject.Do(r)
 	if err != nil {
+		ConfigFetchFailure.WithLabelValues(url).Inc()
 		return nil, err
 	}
 	defer resp.Body.Close()

@@ -16,7 +16,7 @@ settings:
   name: MyService
   timeformat: "2001-01-01 00:00:00"
   log:
-    level: info
+    level: debug
   probe:
     timeout: 2s
     interval: 15s
