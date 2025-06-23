@@ -6,18 +6,18 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// metrics is the conf metrics
-type metrics struct {
+// ConfigMetrics is the conf metrics
+type ConfigMetrics struct {
 	Duration *prometheus.GaugeVec
 	Status   *prometheus.GaugeVec
 }
 
-// newMetrics create the metrics
-func newMetrics(constLabels prometheus.Labels) *metrics {
+// NewConfigMetrics create the metrics
+func NewConfigMetrics(constLabels prometheus.Labels) *ConfigMetrics {
 	namespace := global.GetEaseProbe().Name
 	subsystem := "config"
 	name := "availability"
-	return &metrics{
+	return &ConfigMetrics{
 		Duration: metric.NewGauge(
 			namespace,
 			subsystem,

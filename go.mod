@@ -2,8 +2,6 @@ module github.com/megaease/easeprobe
 
 go 1.24.4
 
-toolchain go1.24.1
-
 require (
 	github.com/Knetic/govaluate v3.0.0+incompatible
 	github.com/antchfx/jsonquery v1.3.6
