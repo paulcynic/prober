@@ -1,4 +1,3 @@
-
 // Package global is the package for EaseProbe
 package global
 

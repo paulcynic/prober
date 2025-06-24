@@ -8,17 +8,17 @@ import (
 
 // ConfigMetrics is the conf metrics
 type ConfigMetrics struct {
-	Duration *prometheus.GaugeVec
-	Status   *prometheus.GaugeVec
+	Timestamp *prometheus.GaugeVec
+	Status    *prometheus.GaugeVec
 }
 
 // NewConfigMetrics create the metrics
 func NewConfigMetrics(constLabels prometheus.Labels) *ConfigMetrics {
-	namespace := global.GetEaseProbe().Name
+	namespace := global.DefaultMetricNamespace
 	subsystem := "config"
 	name := "availability"
 	return &ConfigMetrics{
-		Duration: metric.NewGauge(
+		Timestamp: metric.NewGauge(
 			namespace,
 			subsystem,
 			name,

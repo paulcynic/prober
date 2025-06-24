@@ -155,6 +155,9 @@ func getYamlFileFromHTTP(url string, metrics *ConfigMetrics) ([]byte, error) {
 	metrics.Status.With(metric.AddConstLabels(prometheus.Labels{
 		"endpoint": url,
 	}, prometheus.Labels{})).Set(float64(1))
+	metrics.Timestamp.With(metric.AddConstLabels(prometheus.Labels{
+		"endpoint": url,
+	}, prometheus.Labels{})).Set(float64(time.Now().Unix()))
 	defer resp.Body.Close()
 	return io.ReadAll(resp.Body)
 }

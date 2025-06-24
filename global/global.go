@@ -1,4 +1,3 @@
-
 package global
 
 import (
@@ -22,6 +21,8 @@ const (
 	DefaultProg = "EaseProbe"
 	// DefaultIconURL is the default icon which used in Slack or Discord
 	DefaultIconURL = "https://megaease.com/favicon.png"
+	// DefaultMetricNamespace is the default namespace for metric
+	DefaultMetricNamespace = "metronome"
 )
 
 var (
