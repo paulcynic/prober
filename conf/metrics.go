@@ -13,28 +13,27 @@ type ConfigMetrics struct {
 }
 
 // NewConfigMetrics create the metrics
-func NewConfigMetrics(constLabels prometheus.Labels) *ConfigMetrics {
+func NewConfigMetrics() *ConfigMetrics {
 	namespace := global.DefaultMetricNamespace
 	subsystem := "config"
-	name := "availability"
 	return &ConfigMetrics{
 		Timestamp: metric.NewGauge(
 			namespace,
 			subsystem,
-			name,
+			"last_modified",
 			"timestamp",
 			"Unix timestamp (in seconds) when the config was last successfully fetched via HTTP",
 			[]string{"endpoint"},
-			constLabels,
+			prometheus.Labels{},
 		),
 		Status: metric.NewGauge(
 			namespace,
 			subsystem,
-			name,
+			"availability",
 			"status",
 			"Whether the config is currently available via HTTP (1=available, 0=not available)",
 			[]string{"endpoint"},
-			constLabels,
+			prometheus.Labels{},
 		),
 	}
 }

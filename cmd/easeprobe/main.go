@@ -15,6 +15,7 @@ import (
 	"github.com/megaease/easeprobe/conf"
 	"github.com/megaease/easeprobe/daemon"
 	"github.com/megaease/easeprobe/global"
+	"github.com/megaease/easeprobe/metric"
 	"github.com/megaease/easeprobe/probe"
 	"github.com/megaease/easeprobe/web"
 	"github.com/prometheus/client_golang/prometheus"
@@ -68,12 +69,24 @@ func main() {
 		os.Exit(0)
 	}
 
-	metrics := conf.NewConfigMetrics(prometheus.Labels{})
-	c, err := conf.New(yamlFile, metrics)
+	// Create metrics for config file
+	metrics := conf.NewConfigMetrics()
+	c, err := conf.New(yamlFile)
 	if err != nil {
+		metrics.Status.With(metric.AddConstLabels(prometheus.Labels{
+			"endpoint": *yamlFile,
+		}, prometheus.Labels{})).Set(float64(0))
 		log.Errorln("Fatal: Cannot read the YAML configuration file!")
 		os.Exit(-1)
 	}
+	metrics.Status.With(metric.AddConstLabels(prometheus.Labels{
+		"endpoint": *yamlFile,
+	}, prometheus.Labels{})).Set(float64(1))
+	metrics.Timestamp.With(metric.AddConstLabels(prometheus.Labels{
+		"endpoint": *yamlFile,
+	}, prometheus.Labels{})).Set(float64(time.Now().Unix()))
+	currentTS := time.Now().Unix()
+	log.Infof("Current timestamp: %d (%s)", currentTS, time.Unix(currentTS, 0).Format(time.RFC3339))
 
 	// Create the pid file if the file name is not empty
 	c.Settings.PIDFile = strings.TrimSpace(c.Settings.PIDFile)
@@ -211,6 +224,12 @@ func monitorYAMLFile(path string, monConf chan bool, metrics *conf.ConfigMetrics
 	for {
 		if conf.IsConfigModified(path, metrics) {
 			log.Infof("The configuration file [%s] has been modified, restarting...", path)
+			// Set metrics after YAML modification
+			metrics.Timestamp.With(metric.AddConstLabels(prometheus.Labels{
+				"endpoint": path,
+			}, prometheus.Labels{})).Set(float64(time.Now().Unix()))
+			currentTS := time.Now().Unix()
+			log.Infof("Current timestamp: %d (%s)", currentTS, time.Unix(currentTS, 0).Format(time.RFC3339))
 			monConf <- true
 			break
 		}

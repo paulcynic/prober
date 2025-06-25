@@ -1,5 +1,5 @@
 tcp:
-  - name: VPNService
+  - name: VPNService-TCP
     host: paulcynic.fvds.ru:54321
 
 http:

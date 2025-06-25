@@ -127,7 +127,7 @@ func isExternalURL(url string) bool {
 	return true
 }
 
-func getYamlFileFromHTTP(url string, metrics *ConfigMetrics) ([]byte, error) {
+func getYamlFileFromHTTP(url string) ([]byte, error) {
 	r, err := httpClient.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -147,17 +147,8 @@ func getYamlFileFromHTTP(url string, metrics *ConfigMetrics) ([]byte, error) {
 
 	resp, err := httpClientObject.Do(r)
 	if err != nil {
-		metrics.Status.With(metric.AddConstLabels(prometheus.Labels{
-			"endpoint": url,
-		}, prometheus.Labels{})).Set(float64(0))
 		return nil, err
 	}
-	metrics.Status.With(metric.AddConstLabels(prometheus.Labels{
-		"endpoint": url,
-	}, prometheus.Labels{})).Set(float64(1))
-	metrics.Timestamp.With(metric.AddConstLabels(prometheus.Labels{
-		"endpoint": url,
-	}, prometheus.Labels{})).Set(float64(time.Now().Unix()))
 	defer resp.Body.Close()
 	return io.ReadAll(resp.Body)
 }
@@ -173,9 +164,9 @@ func getYamlFileFromFile(path string) ([]byte, error) {
 	return os.ReadFile(path)
 }
 
-func getYamlFile(path string, metrics *ConfigMetrics) ([]byte, error) {
+func getYamlFile(path string) ([]byte, error) {
 	if isExternalURL(path) {
-		return getYamlFileFromHTTP(path, metrics)
+		return getYamlFileFromHTTP(path)
 	}
 	return getYamlFileFromFile(path)
 }
@@ -193,12 +184,15 @@ func IsConfigModified(path string, metrics *ConfigMetrics) bool {
 	var content []byte
 	var err error
 	if isExternalURL(path) {
-		content, err = getYamlFileFromHTTP(path, metrics)
+		content, err = getYamlFileFromHTTP(path)
 	} else {
 		content, err = getYamlFileFromFile(path)
 	}
 
 	if err != nil {
+		metrics.Status.With(metric.AddConstLabels(prometheus.Labels{
+			"endpoint": path,
+		}, prometheus.Labels{})).Set(float64(0))
 		log.Warnf("Failed to get the configuration file [%s]: %v", path, err)
 		return false
 	}
@@ -213,9 +207,16 @@ func IsConfigModified(path string, metrics *ConfigMetrics) bool {
 	testConf := Conf{}
 	err = yaml.Unmarshal(content, &testConf)
 	if err != nil {
+		metrics.Status.With(metric.AddConstLabels(prometheus.Labels{
+			"endpoint": path,
+		}, prometheus.Labels{})).Set(float64(0))
 		log.Warnf("Invalid configuration file [%s]: %v", path, err)
 		return false
 	}
+
+	metrics.Status.With(metric.AddConstLabels(prometheus.Labels{
+		"endpoint": path,
+	}, prometheus.Labels{})).Set(float64(1))
 
 	// check if the configuration file is modified
 	modified := !bytes.Equal(content, previousYAMLFile)
@@ -224,7 +225,7 @@ func IsConfigModified(path string, metrics *ConfigMetrics) bool {
 }
 
 // New read the configuration from yaml
-func New(conf *string, metrics *ConfigMetrics) (*Conf, error) {
+func New(conf *string) (*Conf, error) {
 	c := Conf{
 		HTTP:   []http.HTTP{},
 		TCP:    []tcp.TCP{},
@@ -248,7 +249,7 @@ func New(conf *string, metrics *ConfigMetrics) (*Conf, error) {
 			},
 		},
 	}
-	y, err := getYamlFile(*conf, metrics)
+	y, err := getYamlFile(*conf)
 	if err != nil {
 		log.Errorf("error: %v ", err)
 		return &c, err
